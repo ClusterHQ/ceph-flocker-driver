@@ -4,8 +4,6 @@ This a Ceph Rados Block Device driver for Flocker, a container data orchestratio
 
 ## Installation
 
-**Tested on CentOS 7**
-
 Make sure you have Flocker already installed. If not visit  [Install Flocker](https://docs.clusterhq.com/en/latest/using/installing/index.html)
 
 **_Be sure to use /opt/flocker/bin/python as this will install the driver into the right python environment_**
