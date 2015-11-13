@@ -6,7 +6,7 @@ with codecs.open('DESCRIPTION.rst', encoding='utf-8') as f:
     long_description = f.read()
 
 setup(
-    name='flocker_ceph_driver',
+    name='ceph_flocker_driver',
     version='0.1',
     description='Ceph RBD driver for ClusterHQ/Flocker',
     long_description=long_description,
