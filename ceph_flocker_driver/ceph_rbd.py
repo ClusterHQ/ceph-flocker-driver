@@ -17,14 +17,22 @@ from uuid import UUID
 import logging
 import requests
 import json
-import rados
-import rbd
+
+# Conditionally import Ceph modules so that tests can be run without them.
+try:
+    import rados
+except ImportError:
+    # Hopefully running tests
+    rados = object()
+try:
+    import rbd
+except ImportError:
+    # Hopefully running tests
+    rbd = object()
 
 from subprocess import check_output
 
 from bitmath import Byte, GiB, MiB, KiB
-
-from scaleiopy import ScaleIO
 
 from eliot import Message, Logger
 from zope.interface import implementer, Interface
@@ -106,21 +114,22 @@ class CephRBDBlockDeviceAPI(object):
     def _list_maps(self):
         """
         Return a ``dict`` mapping unicode RBD image names to mounted block
-        device ``FilePath``s.
+        device ``FilePath``s for the active pool only.
         """
         maps = dict()
-        showmapped_output = self._check_output([b"rbd", b"showmapped"])
+        showmapped_output = self._check_output([b"rbd", b"showmapped"]).strip()
         if not len(showmapped_output):
             return maps
-        lines = showmapped_output.split(b"\n")
+        u_showmapped_output = showmapped_output.decode("utf-8")
+        lines = u_showmapped_output.split(b"\n")
         if len(lines) == 1:
             raise Exception("Unexpecetd `rbd showmapped` output: %r" % (showmapped_output,))
         lines.pop(0)
-        for line in lines.split():
-            image_id, pool, image_name, snap, mountpoint = line
+        for line in lines:
+            image_id, pool, image_name, snap, mountpoint = line.split()
             if pool != self._pool:
                 continue
-            maps[unicode(image_name)] = FilePath(mountpoint)
+            maps[image_name] = FilePath(mountpoint)
         return maps
 
     @finally_shutdown
@@ -197,6 +206,7 @@ class CephRBDBlockDeviceAPI(object):
         self._connection.close()
 
 def rbd_from_configuration(cluster_name, user_id, ceph_conf_path, storage_pool):
+    import rados
     try:
         cluster = rados.Rados(conffile=ceph_conf_path)
     except TypeError as e:
