@@ -3,6 +3,8 @@ from twisted.trial.unittest import TestCase
 
 from ceph_rbd import CephRBDBlockDeviceAPI
 
+from flocker.node.agents.blockdevice import AlreadyAttachedVolume
+
 class FakeCommandRunner(object):
     """
     Test helper to simulate ``subprocess.check_output``.
@@ -28,6 +30,40 @@ class FakeCommandRunner(object):
             list which would be provided to ``check_output``.
         """
         return self._outputs[tuple(command_spec)]
+
+
+class CephRBDBlockDeviceAPITests(TestCase):
+    """
+    Tests for ``CephRBDBlockDeviceAPI``.
+    """
+    def get_api_and_runner(self):
+        runner = FakeCommandRunner()
+        return (CephRBDBlockDeviceAPI(None, None, b"rbd", runner.check_output), runner)
+    
+    def _basic_output(self):
+        """
+        Get basic test api and runner.
+        """
+        api, runner = self.get_api_and_runner()
+        runner.add_command([b"hostname", b"-s"], "ceph-node-1\n")
+        runner.add_command([b"rbd", b"showmapped"],
+            'id pool       image            snap device    \n1  rbd        foo              -    /dev/rbd1 \n2  rbd        flocker-foo      -    /dev/rbd2 \n3  rbd        \xf0\x9f\x90\xb3             -    /dev/rbd3 \n4  other_pool some_other_image -    /dev/rbd4 \n')
+        return api, runner
+
+    def test_compute_instance_id(self):
+        """
+        The instance_id is the current node hostname.
+        """
+        api, runner = self._basic_output()
+        self.assertEquals(api.compute_instance_id(), "ceph-node-1")
+    
+    def test_attach_already_attached(self):
+        """
+        ``attach_volume`` raises ``AlreadyAttachedVolume``.
+        """
+        api, runner = self._basic_output()
+        self.assertRaises(AlreadyAttachedVolume, api.attach_volume, u"foo",
+                api.compute_instance_id())
 
 
 class ListMapsTests(TestCase):

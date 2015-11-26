@@ -65,21 +65,6 @@ class ImageExists(Exception):
         Exception.__init__(self, blockdevice_id)
         self.blockdevice_id = blockdevice_id
 
-def finally_shutdown(func):
-    """
-    Decorator to shutdown any connection after it has been used.
-    """
-    def wrap(self, *args, **kwargs):
-        try:
-            value = func(*args, **kwargs)
-        except Exception as e:
-            self.shutdown()
-            raise e
-        else:
-            self.shutdown()
-            return value
-    return wrap
-
 def _blockdevice_id(dataset_id):
     return "flocker-%s" % (dataset_id,)
 
@@ -132,7 +117,14 @@ class CephRBDBlockDeviceAPI(object):
             maps[image_name] = FilePath(mountpoint)
         return maps
 
-    @finally_shutdown
+    def compute_instance_id(self):
+        """
+        Get the hostname for this node. Ceph identifies nodes by hostname.
+
+        :returns: A ``unicode`` object representing this node.
+        """
+        return self._check_output([b"hostname", b"-s"]).strip()
+
     def create_volume(self, dataset_id, size):
         """
         Create a new volume as an RBD image.
@@ -150,7 +142,6 @@ class CephRBDBlockDeviceAPI(object):
         rbd_inst.create(self._ioctx, blockdevice_id, size)
         return BlockDeviceVolume(blockdevice_id, size, None, dataset_id)
 
-    @finally_shutdown
     def destroy_volume(self, blockdevice_id):
         """
         Destroy an existing RBD image.
@@ -165,7 +156,6 @@ class CephRBDBlockDeviceAPI(object):
         rbd_inst = rbd.RBD()
         rbd_inst.remove(self._ioctx, blockdevice_id)
 
-    @finally_shutdown
     def attach_volume(self, blockdevice_id, attach_to):
         """
         Attach ``blockdevice_id`` to the node indicated by ``attach_to``.
@@ -186,24 +176,17 @@ class CephRBDBlockDeviceAPI(object):
         if attach_to != self.compute_instance_id():
             # TODO log this.
             return
-        self._check_exists(blockdevice_id)
         maps = self._list_maps()
         if blockdevice_id in maps:
             raise AlreadyAttachedVolume(blockdevice_id)
+        self._check_exists(blockdevice_id)
 
-        self._check_output([b"rbd", b"map", blockdevice_id]).strip()
+        self._check_output([b"rbd", b"map", blockdevice_id])
 
         rbd_image = rbd.Image(self._ioctx, blockdevice_id)
         size = rbd_image.stat()["size"]
         return BlockDeviceVolume(blockdevice_id, size, self.compute_instance_id(), _dataset_id(blockdevice_id))
 
-
-    def shutdown(self):
-        """
-        Close and shut down the Ceph connection.
-        """
-        self._ioctx.close()
-        self._connection.close()
 
 def rbd_from_configuration(cluster_name, user_id, ceph_conf_path, storage_pool):
     import rados
