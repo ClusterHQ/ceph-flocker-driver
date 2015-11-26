@@ -189,7 +189,8 @@ class CephRBDBlockDeviceAPI(object):
 
         rbd_image = rbd.Image(self._ioctx, blockdevice_id)
         size = rbd_image.stat()["size"]
-        return BlockDeviceVolume(blockdevice_id, size, self.compute_instance_id(), _dataset_id(blockdevice_id))
+        return BlockDeviceVolume(blockdevice_id, size,
+                self.compute_instance_id(), _dataset_id(blockdevice_id))
 
     def detach_volume(self, blockdevice_id):
         """
@@ -211,6 +212,38 @@ class CephRBDBlockDeviceAPI(object):
             return
         self._check_output([b"rbd", b"-p", self._pool, b"unmap",
             blockdevice_id])
+
+    def list_volumes(self):
+        """
+        List all the block devices available via the back end API.
+        :returns: A ``list`` of ``BlockDeviceVolume``s.
+        """
+        rbd_inst = rbd.RBD()
+        volumes = []
+        all_images = rbd_inst.list(self._ioctx)
+        for blockdevice_id in all_images:
+            rbd_image = rbd.Image(self._ioctx, blockdevice_id)
+            size = rbd_image.stat()["size"]
+            volumes.append(BlockDeviceVolume(blockdevice_id, size,
+                self.compute_instance_id(), _dataset_id(blockdevice_id)))
+        return volumes
+
+    def get_device_path(self, blockdevice_id):
+        """
+        Return the device path that has been allocated to the block device on
+        the host to which it is currently attached.
+
+        :param unicode blockdevice_id: The unique identifier for the block
+            device.
+        :raises UnknownVolume: If the supplied ``blockdevice_id`` does not
+            exist.
+        :raises UnattachedVolume: If the supplied ``blockdevice_id`` is
+            not attached to a host.
+        :returns: A ``FilePath`` for the device.
+        """
+        self._check_exists(blockdevice_id)
+        maps = self._list_maps()
+        return maps.get(blockdevice_id)
 
 
 def rbd_from_configuration(cluster_name, user_id, ceph_conf_path, storage_pool):
