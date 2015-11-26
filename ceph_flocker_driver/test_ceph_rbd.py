@@ -46,7 +46,7 @@ class CephRBDBlockDeviceAPITests(TestCase):
         """
         api, runner = self.get_api_and_runner()
         runner.add_command([b"hostname", b"-s"], "ceph-node-1\n")
-        runner.add_command([b"rbd", b"showmapped"],
+        runner.add_command([b"rbd", b"-p", b"rbd", b"showmapped"],
             'id pool       image            snap device    \n1  rbd        foo              -    /dev/rbd1 \n2  rbd        flocker-foo      -    /dev/rbd2 \n3  rbd        \xf0\x9f\x90\xb3             -    /dev/rbd3 \n4  other_pool some_other_image -    /dev/rbd4 \n')
         return api, runner
 
@@ -81,7 +81,7 @@ class ListMapsTests(TestCase):
         """
 
         api, runner = self.get_api_and_runner()
-        runner.add_command([b"rbd", b"showmapped"],
+        runner.add_command([b"rbd", b"-p", b"rbd", b"showmapped"],
             'id pool       image            snap device    \n1  rbd        foo              -    /dev/rbd1 \n2  rbd        flocker-foo      -    /dev/rbd2 \n3  rbd        \xf0\x9f\x90\xb3             -    /dev/rbd3 \n4  other_pool some_other_image -    /dev/rbd4 \n')
         return api, runner
 
