@@ -30,4 +30,3 @@ FLOCKER_BACKEND = BackendDescription(
     name=u"ceph_flocker_driver",
     needs_reactor=False, needs_cluster_id=True,
     api_factory=api_factory, deployer_type=DeployerType.block)
-
