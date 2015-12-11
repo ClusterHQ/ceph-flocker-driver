@@ -19,16 +19,8 @@ import requests
 import json
 
 # Conditionally import Ceph modules so that tests can be run without them.
-try:
-    import rados
-except ImportError:
-    # Hopefully running tests
-    rados = object()
-try:
-    import rbd
-except ImportError:
-    # Hopefully running tests
-    rbd = object()
+import rados
+import rbd
 
 from subprocess import check_output
 
@@ -66,7 +58,11 @@ class ImageExists(Exception):
         self.blockdevice_id = blockdevice_id
 
 def _blockdevice_id(dataset_id):
-    return "flocker-%s" % (dataset_id,)
+    """
+    A blockdevice_id is the unicode representation of a Flocker dataset_id
+    according to the storage system.
+    """
+    return u"flocker-%s" % (dataset_id,)
 
 def _dataset_id(blockdevice_id):
     return blockdevice_id[8:]
@@ -149,7 +145,8 @@ class CephRBDBlockDeviceAPI(object):
         if blockdevice_id in all_images:
             raise ImageExists(blockdevice_id)
         rbd_inst.create(self._ioctx, blockdevice_id, size)
-        return BlockDeviceVolume(blockdevice_id, size, None, dataset_id)
+        return BlockDeviceVolume(blockdevice_id=blockdevice_id, size=size,
+                dataset_id=dataset_id)
 
     def destroy_volume(self, blockdevice_id):
         """
