@@ -1,9 +1,11 @@
+from uuid import uuid4
 from twisted.python.filepath import FilePath
 from twisted.trial.unittest import TestCase
 
-from ceph_rbd import CephRBDBlockDeviceAPI
+from ceph_rbd import CephRBDBlockDeviceAPI, rbd_from_configuration
 
 from flocker.node.agents.blockdevice import AlreadyAttachedVolume
+from flocker.node.agents.test.test_blockdevice import make_iblockdeviceapi_tests
 
 class FakeCommandRunner(object):
     """
@@ -39,7 +41,7 @@ class CephRBDBlockDeviceAPITests(TestCase):
     def get_api_and_runner(self):
         runner = FakeCommandRunner()
         return (CephRBDBlockDeviceAPI(None, None, b"rbd", runner.check_output), runner)
-    
+
     def _basic_output(self):
         """
         Get basic test api and runner.
@@ -56,7 +58,7 @@ class CephRBDBlockDeviceAPITests(TestCase):
         """
         api, runner = self._basic_output()
         self.assertEquals(api.compute_instance_id(), "ceph-node-1")
-    
+
     def test_attach_already_attached(self):
         """
         ``attach_volume`` raises ``AlreadyAttachedVolume``.
@@ -74,7 +76,7 @@ class ListMapsTests(TestCase):
     def get_api_and_runner(self):
         runner = FakeCommandRunner()
         return (CephRBDBlockDeviceAPI(None, None, b"rbd", runner.check_output), runner)
-    
+
     def _basic_output(self):
         """
         Get basic test api and runner.
@@ -90,7 +92,7 @@ class ListMapsTests(TestCase):
         There are no maps, return an empty dict.
         """
         api, runner = self.get_api_and_runner()
-        runner.add_command([b"rbd", b"showmapped"], "\n")
+        runner.add_command([b"rbd", b"-p", b"rbd", b"showmapped"], "\n")
         maps = api._list_maps()
         self.assertEquals(maps, dict())
 
@@ -127,3 +129,17 @@ class ListMapsTests(TestCase):
         api, runner = self._basic_output()
         maps = api._list_maps()
         self.assertNotIn(u"other_pool", maps)
+
+
+def api_factory(test_case):
+    """
+    :param test: A twisted.trial.unittest.TestCase instance
+    """
+    return rbd_from_configuration("flocker", "client.admin", "/etc/ceph/ceph.conf", "rbd")
+
+class CephRBDRealTests(make_iblockdeviceapi_tests(
+    api_factory, 1024 * 1024 * 32, 1024 * 1024,
+    lambda test: unicode(uuid4()))): # XXX this is a guess
+    """
+    Acceptance tests for the ceph_rbd driver.
+    """

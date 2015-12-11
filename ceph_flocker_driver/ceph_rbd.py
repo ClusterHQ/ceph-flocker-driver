@@ -120,6 +120,12 @@ class CephRBDBlockDeviceAPI(object):
             maps[image_name] = FilePath(mountpoint)
         return maps
 
+    def allocation_unit(self):
+        """
+        The minimum Ceph RBD allocatio quanta is 1MB
+        """
+        return 1024 * 1024
+
     def compute_instance_id(self):
         """
         Get the hostname for this node. Ceph identifies nodes by hostname.
