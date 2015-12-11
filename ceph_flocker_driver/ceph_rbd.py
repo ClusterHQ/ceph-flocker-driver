@@ -64,8 +64,16 @@ def _blockdevice_id(dataset_id):
     """
     return u"flocker-%s" % (dataset_id,)
 
+def _rbd_blockdevice_id(blockdevice_id):
+    """
+    The ``rbd`` module only accepts ``blockdevice_id``s of type ``bytes``.
+
+    XXX think about the problems here
+    """
+    return bytes(blockdevice_id)
+
 def _dataset_id(blockdevice_id):
-    return blockdevice_id[8:]
+    return UUID(blockdevice_id[8:])
 
 @implementer(IBlockDeviceAPI)
 class CephRBDBlockDeviceAPI(object):
@@ -128,7 +136,7 @@ class CephRBDBlockDeviceAPI(object):
 
         :returns: A ``unicode`` object representing this node.
         """
-        return self._check_output([b"hostname", b"-s"]).strip()
+        return self._check_output([b"hostname", b"-s"]).strip().decode("utf8")
 
     def create_volume(self, dataset_id, size):
         """
@@ -144,7 +152,7 @@ class CephRBDBlockDeviceAPI(object):
         all_images = rbd_inst.list(self._ioctx)
         if blockdevice_id in all_images:
             raise ImageExists(blockdevice_id)
-        rbd_inst.create(self._ioctx, blockdevice_id, size)
+        rbd_inst.create(self._ioctx, _rbd_blockdevice_id(blockdevice_id), size)
         return BlockDeviceVolume(blockdevice_id=blockdevice_id, size=size,
                 dataset_id=dataset_id)
 
@@ -190,10 +198,11 @@ class CephRBDBlockDeviceAPI(object):
         self._check_output([b"rbd", b"-p", self._pool, b"map",
             blockdevice_id])
 
-        rbd_image = rbd.Image(self._ioctx, blockdevice_id)
-        size = rbd_image.stat()["size"]
-        return BlockDeviceVolume(blockdevice_id, size,
-                self.compute_instance_id(), _dataset_id(blockdevice_id))
+        rbd_image = rbd.Image(self._ioctx, _rbd_blockdevice_id(blockdevice_id))
+        size = int(rbd_image.stat()["size"])
+        return BlockDeviceVolume(blockdevice_id=blockdevice_id, size=size,
+                attached_to=self.compute_instance_id(),
+                dataset_id=_dataset_id(blockdevice_id))
 
     def detach_volume(self, blockdevice_id):
         """
@@ -227,8 +236,9 @@ class CephRBDBlockDeviceAPI(object):
         for blockdevice_id in all_images:
             rbd_image = rbd.Image(self._ioctx, blockdevice_id)
             size = rbd_image.stat()["size"]
-            volumes.append(BlockDeviceVolume(blockdevice_id, size,
-                self.compute_instance_id(), _dataset_id(blockdevice_id)))
+            volumes.append(BlockDeviceVolume(blockdevice_id=unicode(blockdevice_id),
+                size=size, attached_to=self.compute_instance_id(),
+                dataset_id=_dataset_id(blockdevice_id)))
         return volumes
 
     def get_device_path(self, blockdevice_id):
