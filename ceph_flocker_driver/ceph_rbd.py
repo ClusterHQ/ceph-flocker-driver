@@ -136,6 +136,14 @@ class CephRBDBlockDeviceAPI(object):
             maps[image_name] = FilePath(mountpoint)
         return maps
 
+    def _is_already_mapped(self, blockdevice_id):
+        """
+        Return ``True`` or ``False`` if requested _blockdevice_id is already
+        mapped anywhere in the cluster.
+        """
+        output = self._check_output([b"rbd", b"status", blockdevice_id])
+        return output.strip() != "Watchers: none"
+
     def allocation_unit(self):
         """
         The minimum Ceph RBD allocatio quanta is 1MB
@@ -200,12 +208,13 @@ class CephRBDBlockDeviceAPI(object):
         :returns: A ``BlockDeviceVolume`` with a ``attached_to`` attribute set
             to ``attach_to``.
         """
+        if self._is_already_mapped(blockdevice_id):
+            raise AlreadyAttachedVolume(blockdevice_id)
+
         if attach_to != self.compute_instance_id():
             # TODO log this.
             return
-        maps = self._list_maps()
-        if blockdevice_id in maps:
-            raise AlreadyAttachedVolume(blockdevice_id)
+
         self._check_exists(blockdevice_id)
 
         self._check_output([b"rbd", b"-p", self._pool, b"map",
