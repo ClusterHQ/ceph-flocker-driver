@@ -110,7 +110,7 @@ class CephRBDBlockDeviceAPI(object):
         rbd_inst = rbd.RBD()
         all_images = rbd_inst.list(self._ioctx)
         if blockdevice_id not in all_images:
-            raise UnknownVolume(blockdevice_id)
+            raise UnknownVolume(unicode(blockdevice_id))
 
     def _list_maps(self):
         """
@@ -130,10 +130,10 @@ class CephRBDBlockDeviceAPI(object):
             raise Exception("Unexpecetd `rbd showmapped` output: %r" % (showmapped_output,))
         lines.pop(0)
         for line in lines:
-            image_id, pool, image_name, snap, mountpoint = line.split()
+            image_id, pool, blockdevice_id, snap, mountpoint = line.split()
             if pool != self._pool:
                 continue
-            maps[image_name] = FilePath(mountpoint)
+            maps[blockdevice_id] = FilePath(mountpoint)
         return maps
 
     def _is_already_mapped(self, blockdevice_id):
@@ -141,6 +141,7 @@ class CephRBDBlockDeviceAPI(object):
         Return ``True`` or ``False`` if requested _blockdevice_id is already
         mapped anywhere in the cluster.
         """
+        self._check_exists(blockdevice_id)
         output = self._check_output([b"rbd", b"status", blockdevice_id])
         return output.strip() != "Watchers: none"
 
@@ -208,14 +209,13 @@ class CephRBDBlockDeviceAPI(object):
         :returns: A ``BlockDeviceVolume`` with a ``attached_to`` attribute set
             to ``attach_to``.
         """
+        # This also checks if it exists
         if self._is_already_mapped(blockdevice_id):
             raise AlreadyAttachedVolume(blockdevice_id)
 
         if attach_to != self.compute_instance_id():
             # TODO log this.
             return
-
-        self._check_exists(blockdevice_id)
 
         self._check_output([b"rbd", b"-p", self._pool, b"map",
             blockdevice_id])
@@ -255,6 +255,7 @@ class CephRBDBlockDeviceAPI(object):
         rbd_inst = rbd.RBD()
         volumes = []
         all_images = rbd_inst.list(self._ioctx)
+        all_maps = self._list_maps()
         for blockdevice_id in all_images:
             blockdevice_id = blockdevice_id.decode()
             try:
@@ -264,8 +265,12 @@ class CephRBDBlockDeviceAPI(object):
                 continue
             rbd_image = rbd.Image(self._ioctx, _rbd_blockdevice_id(blockdevice_id))
             size = int(rbd_image.stat()["size"])
+            if blockdevice_id in all_maps:
+                attached_to = self.compute_instance_id()
+            else:
+                attached_to = None
             volumes.append(BlockDeviceVolume(blockdevice_id=unicode(blockdevice_id),
-                size=size, attached_to=self.compute_instance_id(),
+                size=size, attached_to=attached_to,
                 dataset_id=dataset_id))
         return volumes
 
