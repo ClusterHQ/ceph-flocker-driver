@@ -4,7 +4,7 @@ from .ceph_rbd import (
     DEFAULT_CEPF_CONF_PATH, DEFAULT_STORAGE_POOL
 )
 
-def api_factory(cluster_id, **kwargs):
+def api_factory(cluster_id, test_case, **kwargs):
 
     cluster_name = DEFAULT_CLUSTER_NAME
     if "cluster_name" in kwargs:

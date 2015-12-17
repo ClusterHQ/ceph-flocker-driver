@@ -87,6 +87,7 @@ def _dataset_id(blockdevice_id):
         raise ExternalBlockDeviceId(blockdevice_id)
     return UUID(blockdevice_id[8:])
 
+
 @implementer(IBlockDeviceAPI)
 class CephRBDBlockDeviceAPI(object):
     """
@@ -132,6 +133,10 @@ class CephRBDBlockDeviceAPI(object):
         for line in lines:
             image_id, pool, blockdevice_id, snap, mountpoint = line.split()
             if pool != self._pool:
+                continue
+            try:
+                _dataset_id(blockdevice_id)
+            except ExternalBlockDeviceId:
                 continue
             maps[blockdevice_id] = FilePath(mountpoint)
         return maps
@@ -240,12 +245,9 @@ class CephRBDBlockDeviceAPI(object):
         :returns: ``None``
         """
         self._check_exists(blockdevice_id)
-        maps = self._list_maps()
-        if blockdevice_id not in maps:
-            # Nothing to do with us.
-            return
+        device_path = self.get_device_path(blockdevice_id).path
         self._check_output([b"rbd", b"-p", self._pool, b"unmap",
-            blockdevice_id])
+            device_path])
 
     def list_volumes(self):
         """
@@ -289,7 +291,20 @@ class CephRBDBlockDeviceAPI(object):
         """
         self._check_exists(blockdevice_id)
         maps = self._list_maps()
-        return maps.get(blockdevice_id)
+        try:
+            return maps[blockdevice_id]
+        except KeyError:
+            raise UnattachedVolume(blockdevice_id)
+
+    def destroy_all_flocker_volumes(self):
+        """
+        Search for and destroy all Flocker volumes.
+        """
+        maps = self._list_maps()
+        for blockdevice_id in maps:
+            self.detach_volume(blockdevice_id)
+        for blockdevicevolume in self.list_volumes():
+            self.destroy_volume(blockdevicevolume.blockdevice_id)
 
 
 def rbd_from_configuration(cluster_name, user_id, ceph_conf_path, storage_pool):

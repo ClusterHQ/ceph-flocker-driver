@@ -138,7 +138,10 @@ def api_factory(test_case):
     """
     :param test: A twisted.trial.unittest.TestCase instance
     """
-    return rbd_from_configuration("flocker", "client.admin", "/etc/ceph/ceph.conf", "rbd")
+    api = rbd_from_configuration("flocker", "client.admin", "/etc/ceph/ceph.conf", "rbd")
+    test_case.addCleanup(api.destroy_all_flocker_volumes)
+    return api
+
 
 class CephRBDRealTests(make_iblockdeviceapi_tests(
     api_factory, 1024 * 1024 * 32, 1024 * 1024,
