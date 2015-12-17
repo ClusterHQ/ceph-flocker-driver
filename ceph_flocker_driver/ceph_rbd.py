@@ -262,7 +262,7 @@ class CephRBDBlockDeviceAPI(object):
             except ExternalBlockDeviceId:
                 # This is an external volume
                 continue
-            rbd_image = rbd.Image(self._ioctx, blockdevice_id)
+            rbd_image = rbd.Image(self._ioctx, _rbd_blockdevice_id(blockdevice_id))
             size = int(rbd_image.stat()["size"])
             volumes.append(BlockDeviceVolume(blockdevice_id=unicode(blockdevice_id),
                 size=size, attached_to=self.compute_instance_id(),
