@@ -57,6 +57,16 @@ class ImageExists(Exception):
         Exception.__init__(self, blockdevice_id)
         self.blockdevice_id = blockdevice_id
 
+
+class ExternalBlockDeviceId(Exception):
+    """
+    The ``blockdevice_id`` was not a Flocker-controlled volume.
+    """
+    def __init__(self, blockdevice_id):
+        Exception.__init__(self, blockdevice_id)
+        self.blockdevice_id = blockdevice_id
+
+
 def _blockdevice_id(dataset_id):
     """
     A blockdevice_id is the unicode representation of a Flocker dataset_id
@@ -73,6 +83,8 @@ def _rbd_blockdevice_id(blockdevice_id):
     return bytes(blockdevice_id)
 
 def _dataset_id(blockdevice_id):
+    if not blockdevice_id.startswith(b"flocker-"):
+        raise ExternalBlockDeviceId(blockdevice_id)
     return UUID(blockdevice_id[8:])
 
 @implementer(IBlockDeviceAPI)
@@ -166,9 +178,10 @@ class CephRBDBlockDeviceAPI(object):
             exist.
         :return: ``None``
         """
-        self._check_exists(blockdevice_id)
+        ascii_blockdevice_id = blockdevice_id.encode()
+        self._check_exists(ascii_blockdevice_id)
         rbd_inst = rbd.RBD()
-        rbd_inst.remove(self._ioctx, blockdevice_id)
+        rbd_inst.remove(self._ioctx, ascii_blockdevice_id)
 
     def attach_volume(self, blockdevice_id, attach_to):
         """
@@ -234,11 +247,17 @@ class CephRBDBlockDeviceAPI(object):
         volumes = []
         all_images = rbd_inst.list(self._ioctx)
         for blockdevice_id in all_images:
+            blockdevice_id = blockdevice_id.decode()
+            try:
+                dataset_id = _dataset_id(blockdevice_id)
+            except ExternalBlockDeviceId:
+                # This is an external volume
+                continue
             rbd_image = rbd.Image(self._ioctx, blockdevice_id)
-            size = rbd_image.stat()["size"]
+            size = int(rbd_image.stat()["size"])
             volumes.append(BlockDeviceVolume(blockdevice_id=unicode(blockdevice_id),
                 size=size, attached_to=self.compute_instance_id(),
-                dataset_id=_dataset_id(blockdevice_id)))
+                dataset_id=dataset_id))
         return volumes
 
     def get_device_path(self, blockdevice_id):
@@ -260,7 +279,6 @@ class CephRBDBlockDeviceAPI(object):
 
 
 def rbd_from_configuration(cluster_name, user_id, ceph_conf_path, storage_pool):
-    import rados
     try:
         cluster = rados.Rados(conffile=ceph_conf_path)
     except TypeError as e:
