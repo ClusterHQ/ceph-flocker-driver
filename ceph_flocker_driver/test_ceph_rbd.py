@@ -1,6 +1,7 @@
+from os import environ
 from uuid import uuid4
 from twisted.python.filepath import FilePath
-from twisted.trial.unittest import TestCase
+from twisted.trial.unittest import TestCase, SkipTest
 
 from ceph_rbd import CephRBDBlockDeviceAPI, rbd_from_configuration
 
@@ -138,6 +139,12 @@ def api_factory(test_case):
     """
     :param test: A twisted.trial.unittest.TestCase instance
     """
+    flocker_functional_test = environ.get('FLOCKER_FUNCTIONAL_TEST')
+    if flocker_functional_test is None:
+        raise SkipTest(
+            'Please set FLOCKER_FUNCTIONAL_TEST environment variable to '
+            'run storage backend functional tests.'
+        )
     api = rbd_from_configuration("flocker", "client.admin", "/etc/ceph/ceph.conf", "rbd")
     test_case.addCleanup(api.destroy_all_flocker_volumes)
     return api
