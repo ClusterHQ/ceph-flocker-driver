@@ -17,6 +17,6 @@ setup(
 
     keywords='backend, plugin, flocker, docker, python',
     packages=find_packages(exclude=['test*']),
-    install_requires = ['rados'],
+    install_requires = ['python-cephlibs'],
     data_files=[('/etc/flocker/', ['agent.yml.example'])],
 )
