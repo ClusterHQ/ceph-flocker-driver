@@ -10,13 +10,12 @@ setup(
     version='0.1',
     description='Ceph RBD driver for ClusterHQ/Flocker',
     long_description=long_description,
-    author='Rob Haswell',
-    author_email='rob@clusterhq.com',
+    author='ClusterHQ Team',
+    author_email='support@clusterhq.com',
     url='https://github.com/ClusterHQ/flocker-ceph-driver',
     license='Apache 2.0',
 
     keywords='backend, plugin, flocker, docker, python',
     packages=find_packages(exclude=['test*']),
-    install_requires = ['python-cephlibs'],
-    data_files=[('/etc/flocker/', ['agent.yml.example'])],
+    install_requires=['python-cephlibs'],
 )
