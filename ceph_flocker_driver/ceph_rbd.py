@@ -12,11 +12,7 @@ See the License for the specific language governing permissions and
 limitations under the License.
 """
 
-import time
 from uuid import UUID
-import logging
-import requests
-import json
 
 # Conditionally import Ceph modules so that tests can be run without them.
 import rados
@@ -24,12 +20,9 @@ import rbd
 
 from subprocess import check_output
 
-from bitmath import Byte, GiB, MiB, KiB
-
-from eliot import Message, Logger
-from zope.interface import implementer, Interface
+from eliot import Logger
+from zope.interface import implementer
 from twisted.python.filepath import FilePath
-from characteristic import attributes
 
 from flocker.node.agents.blockdevice import (
     AlreadyAttachedVolume, IBlockDeviceAPI,
@@ -48,6 +41,7 @@ DEFAULT_STORAGE_POOL = "rbd"
 
 # We will look for ceph.conf in /etc/ceph
 DEFAULT_CEPF_CONF_PATH = "/etc/ceph/ceph.conf"
+
 
 class ImageExists(Exception):
     """
@@ -74,6 +68,7 @@ def _blockdevice_id(dataset_id):
     """
     return u"flocker-%s" % (dataset_id,)
 
+
 def _rbd_blockdevice_id(blockdevice_id):
     """
     The ``rbd`` module only accepts ``blockdevice_id``s of type ``bytes``.
@@ -81,6 +76,7 @@ def _rbd_blockdevice_id(blockdevice_id):
     XXX think about the problems here
     """
     return bytes(blockdevice_id)
+
 
 def _dataset_id(blockdevice_id):
     if not blockdevice_id.startswith(b"flocker-"):
@@ -121,14 +117,16 @@ class CephRBDBlockDeviceAPI(object):
         This information only applies to this host.
         """
         maps = dict()
-        showmapped_output = self._check_output([b"rbd", "-p", self._pool,
-            b"showmapped"]).strip()
+        showmapped_output = self._check_output(
+            [b"rbd", "-p", self._pool, b"showmapped"]).strip()
         if not len(showmapped_output):
             return maps
         u_showmapped_output = showmapped_output.decode("utf-8")
         lines = u_showmapped_output.split(b"\n")
         if len(lines) == 1:
-            raise Exception("Unexpecetd `rbd showmapped` output: %r" % (showmapped_output,))
+            raise Exception(
+                "Unexpecetd `rbd showmapped` output: %r"
+                % (showmapped_output,))
         lines.pop(0)
         for line in lines:
             image_id, pool, blockdevice_id, snap, mountpoint = line.split()
@@ -179,8 +177,8 @@ class CephRBDBlockDeviceAPI(object):
         if blockdevice_id in all_images:
             raise ImageExists(blockdevice_id)
         rbd_inst.create(self._ioctx, _rbd_blockdevice_id(blockdevice_id), size)
-        return BlockDeviceVolume(blockdevice_id=blockdevice_id, size=size,
-                dataset_id=dataset_id)
+        return BlockDeviceVolume(
+            blockdevice_id=blockdevice_id, size=size, dataset_id=dataset_id)
 
     def destroy_volume(self, blockdevice_id):
         """
@@ -222,14 +220,15 @@ class CephRBDBlockDeviceAPI(object):
             # TODO log this.
             return
 
-        self._check_output([b"rbd", b"-p", self._pool, b"map",
-            blockdevice_id])
+        self._check_output([
+            b"rbd", b"-p", self._pool, b"map", blockdevice_id])
 
         rbd_image = rbd.Image(self._ioctx, _rbd_blockdevice_id(blockdevice_id))
         size = int(rbd_image.stat()["size"])
-        return BlockDeviceVolume(blockdevice_id=blockdevice_id, size=size,
-                attached_to=self.compute_instance_id(),
-                dataset_id=_dataset_id(blockdevice_id))
+        return BlockDeviceVolume(
+            blockdevice_id=blockdevice_id, size=size,
+            attached_to=self.compute_instance_id(),
+            dataset_id=_dataset_id(blockdevice_id))
 
     def detach_volume(self, blockdevice_id):
         """
@@ -246,8 +245,8 @@ class CephRBDBlockDeviceAPI(object):
         """
         self._check_exists(blockdevice_id)
         device_path = self.get_device_path(blockdevice_id).path
-        self._check_output([b"rbd", b"-p", self._pool, b"unmap",
-            device_path])
+        self._check_output([
+            b"rbd", b"-p", self._pool, b"unmap", device_path])
 
     def list_volumes(self):
         """
@@ -265,13 +264,15 @@ class CephRBDBlockDeviceAPI(object):
             except ExternalBlockDeviceId:
                 # This is an external volume
                 continue
-            rbd_image = rbd.Image(self._ioctx, _rbd_blockdevice_id(blockdevice_id))
+            rbd_image = rbd.Image(
+                self._ioctx, _rbd_blockdevice_id(blockdevice_id))
             size = int(rbd_image.stat()["size"])
             if blockdevice_id in all_maps:
                 attached_to = self.compute_instance_id()
             else:
                 attached_to = None
-            volumes.append(BlockDeviceVolume(blockdevice_id=unicode(blockdevice_id),
+            volumes.append(BlockDeviceVolume(
+                blockdevice_id=unicode(blockdevice_id),
                 size=size, attached_to=attached_to,
                 dataset_id=dataset_id))
         return volumes
@@ -307,7 +308,9 @@ class CephRBDBlockDeviceAPI(object):
             self.destroy_volume(blockdevicevolume.blockdevice_id)
 
 
-def rbd_from_configuration(cluster_name, user_id, ceph_conf_path, storage_pool):
+def rbd_from_configuration(
+    cluster_name, user_id, ceph_conf_path, storage_pool
+):
     try:
         cluster = rados.Rados(conffile=ceph_conf_path)
     except TypeError as e:
@@ -321,7 +324,7 @@ def rbd_from_configuration(cluster_name, user_id, ceph_conf_path, storage_pool):
         raise e
 
     if not cluster.pool_exists(storage_pool):
-        raise Exception("Pool does not exist") # XXX eliot
+        raise Exception("Pool does not exist")  # XXX eliot
     ioctx = cluster.open_ioctx(storage_pool)
 
     return CephRBDBlockDeviceAPI(cluster, ioctx, storage_pool, check_output)
