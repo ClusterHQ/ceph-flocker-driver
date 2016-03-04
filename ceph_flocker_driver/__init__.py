@@ -33,7 +33,14 @@ def api_factory(cluster_id, test_case=None, **kwargs):
         cluster_name=cluster_name, user_id=user_id,
         ceph_conf_path=ceph_conf_path, storage_pool=storage_pool)
 
+
+def configure_cluster(cluster):
+    from .provision import configure_ceph
+    return configure_ceph(cluster)
+
 FLOCKER_BACKEND = BackendDescription(
     name=u"ceph_flocker_driver",
     needs_reactor=False, needs_cluster_id=True,
-    api_factory=api_factory, deployer_type=DeployerType.block)
+    api_factory=api_factory, deployer_type=DeployerType.block,
+    acceptance_configure_cluster=configure_cluster,
+)
