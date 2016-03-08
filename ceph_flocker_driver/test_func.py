@@ -8,7 +8,7 @@ from flocker.node.agents.test.test_blockdevice import (
 from ceph_flocker_driver.ceph_rbd import rbd_from_configuration
 
 
-def api_factory(test):
+def api_factory(test_case):
     # Return an instance of your IBlockDeviceAPI implementation class, given
     # a twisted.trial.unittest.TestCase instance.
     return rbd_from_configuration("flocker", "ceph.admin", None, "rbd")
