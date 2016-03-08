@@ -66,15 +66,15 @@ def provision(monitor_node, nodes):
         # Populate known_hosts
         # and create ODS_PATH for later
         ssh(node, ["/bin/mkdir", "-p", OSD_PATH])
-        ssh(node, ["firewall-cmd", "--zone=public",
-                   "--add-port=6800-7300/tcp", "--permanent"])
-        ssh(node, ["firewall-cmd", "--zone=public",
-                   "--add-port=6800-7300/tcp"])
+        #ssh(node, ["firewall-cmd", "--zone=public",
+        #           "--add-port=6800-7300/tcp", "--permanent"])
+        #ssh(node, ["firewall-cmd", "--zone=public",
+        #           "--add-port=6800-7300/tcp"])
 
-    ssh(monitor_node, ["firewall-cmd", "--zone=public",
-                       "--add-port=6789/tcp", "--permanent"])
-    ssh(monitor_node, ["firewall-cmd", "--zone=public",
-                       "--add-port=6789/tcp"])
+    #ssh(monitor_node, ["firewall-cmd", "--zone=public",
+    #                   "--add-port=6789/tcp", "--permanent"])
+    #ssh(monitor_node, ["firewall-cmd", "--zone=public",
+    #                   "--add-port=6789/tcp"])
 
     os.mkdir("/root/ceph-cluster")
     ceph_deploy(["install"] + map(aws_hostname, nodes))
