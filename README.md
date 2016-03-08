@@ -4,7 +4,7 @@ This a Ceph Rados Block Device driver for Flocker, a container data orchestratio
 
 ## Installation
 
-Make sure you have Flocker already installed. If not visit  [Install Flocker](https://docs.clusterhq.com/en/latest/using/installing/index.html)
+Make sure you have the flocker node servies already installed. If not visit  [Install Flocker](https://docs.clusterhq.com/en/latest/installation/install-node.html)
 
 **_Be sure to use /opt/flocker/bin/python as this will install the driver into the right python environment_**
 
@@ -25,3 +25,21 @@ cd flocker-ceph-driver/
 ```
 
 **Note:** Thank you for EMC for providing their ScaleIO driver on which this work was based: https://github.com/emccorp/scaleio-flocker-driver
+
+# Development
+
+This is sort of a destructive method for setting up an environment to run the functional tests.
+
+It might be appropriate for developing on an ephemeral VM in a public cloud.
+
+Set up a virtualenv that uses python binary in the flocker tree:
+```bash
+sudo /opt/flocker/bin/pip install virtualenvwrapper
+mkdir ~/ceph-env
+/opt/flocker/bin/virtualenv ~/ceph-env/
+source ~/ceph-env/bin/activate
+```
+
+Install dependencies
+```bash
+```
