@@ -2,6 +2,11 @@
 
 This a Ceph Rados Block Device driver for Flocker, a container data orchestration system.
 
+# WARNING: THIS IS STILL IN DEVELOPMENT
+
+ClusterHQ is working on this project right now, but it is not ready yet.
+Thank you for your interest and watch out for a release!
+
 ## Installation
 
 Make sure you have Flocker already installed. If not visit  [Install Flocker](https://docs.clusterhq.com/en/latest/using/installing/index.html)
