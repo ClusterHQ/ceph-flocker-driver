@@ -63,7 +63,7 @@ parallel(
         echo "Running tests."
         try {
           sshagent(['af3d96ee-5398-41ee-a8b4-b59cb071fa5a']) {
-            sh "flocker/admin/run-acceptance-tests --distribution centos-7 --provider aws --config-file /tmp/acceptance.yaml --branch master --dataset-backend ceph_flocker_driver -- --reporter=subunit flocker.acceptance 2>&1 | tee trial.log"
+            sh "${venv}/bin/python flocker/admin/run-acceptance-tests --distribution centos-7 --provider aws --config-file /tmp/acceptance.yaml --branch master --dataset-backend ceph_flocker_driver -- --reporter=subunit flocker.acceptance 2>&1 | tee trial.log"
           }
         } finally {
           echo "Collecting Results."
