@@ -37,7 +37,7 @@ def ceph_common(Closure body) {
     }
     with_virtualenv { venv ->
       sh "pip install . ./flocker[dev] --process-dependency-links"
-      body(virtualenv)
+      body(venv)
     }
   }
 }
