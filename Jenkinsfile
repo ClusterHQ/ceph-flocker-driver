@@ -28,49 +28,47 @@ def with_virtualenv(Closure body) {
   withEnv(["PATH+VENV=${venv}/bin"]) { body(venv) }
 }
 
+def ceph_common(Closure body) {
+  wrap([$class: 'TimestamperBuildWrapper']) {
+    echo "Checking out source."
+    checkout scm
+    dir ("flocker") {
+      git url:'https://github.com/ClusterHQ/flocker.git', branch:'ceph'
+    }
+    with_virtualenv { venv ->
+      sh "pip install . ./flocker[dev] --process-dependency-links"
+      body(virtualenv)
+    }
+  }
+}
+
 parallel(
   lint: {
     node ("aws-centos-7-SELinux-T2Medium"){
-      wrap([$class: 'TimestamperBuildWrapper']) {
-        echo "Checking out source."
-        checkout scm
-        dir ("flocker") {
-          git url:'https://github.com/ClusterHQ/flocker.git', branch:'ceph'
+      ceph_common { venv ->
+        catchError {
+          sh "flake8 --format=pylint --output flake8.lint.txt ceph_flocker_driver"
         }
-        with_virtualenv { venv ->
-          sh "pip install . ./flocker[dev] --process-dependency-links"
-          catchError {
-            sh "flake8 --format=pylint --output flake8.lint.txt ceph_flocker_driver"
-          }
-          catchError {
-            sh "pylint ceph_flocker_driver > pylint.lint.txt"
-          }
-          archive_list(['*.lint.txt'])
+        catchError {
+          sh "pylint ceph_flocker_driver > pylint.lint.txt"
         }
+        archive_list(['*.lint.txt'])
       }
     }
   },
   acceptance: {
     node ("aws-centos-7-SELinux-T2Medium"){
-      wrap([$class: 'TimestamperBuildWrapper']) {
-        echo "Checking out source."
-        checkout scm
-        dir ("flocker") {
-          git url:'https://github.com/ClusterHQ/flocker.git', branch:'ceph'
-        }
-        with_virtualenv { venv ->
-          sh "pip install . ./flocker[dev]  python-subunit junitxml --process-dependency-links"
-          sh 'touch ${HOME}/.ssh/known_hosts'
-          echo "Running tests."
-          try {
-            sshagent(['af3d96ee-5398-41ee-a8b4-b59cb071fa5a']) {
-              sh "python flocker/admin/run-acceptance-tests --distribution centos-7 --provider aws --config-file /tmp/acceptance.yaml --branch master --dataset-backend ceph_flocker_driver -- --reporter=subunit flocker.acceptance 2>&1 | tee trial.log"
-            }
-          } finally {
-            echo "Collecting Results."
-            archive_list(acceptance_artifacts)
-            subunit_results("trial.log")
+      ceph_common { venv ->
+        sh 'touch ${HOME}/.ssh/known_hosts'
+        echo "Running tests."
+        try {
+          sshagent(['af3d96ee-5398-41ee-a8b4-b59cb071fa5a']) {
+            sh "python flocker/admin/run-acceptance-tests --distribution centos-7 --provider aws --config-file /tmp/acceptance.yaml --branch master --dataset-backend ceph_flocker_driver -- --reporter=subunit flocker.acceptance 2>&1 | tee trial.log"
           }
+        } finally {
+          echo "Collecting Results."
+          archive_list(acceptance_artifacts)
+          subunit_results("trial.log")
         }
       }
     }
