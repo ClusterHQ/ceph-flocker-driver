@@ -36,6 +36,9 @@ cd flocker-ceph-driver/
 Reminder that this project is still under development, but if you want to
 install and use it from the master branch, do the following:
 
+This assumes you already have a ceph cluster set up, and that rbd can be run
+from the command line on all of your agent nodes.
+
 On every agent node you need to install this driver into the python environment
 in which flocker runs:
 
